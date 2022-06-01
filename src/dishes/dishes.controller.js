@@ -7,12 +7,103 @@ const dishes = require(path.resolve("src/data/dishes-data"));
 const nextId = require("../utils/nextId");
 
 // TODO: Implement the /dishes handlers needed to make the tests pass
-const list = (req, res, next) => {
-    res.json({ data: dishes });
+// create, read, update, and list
+const list = (req, res) => {
+  res.json({ data: dishes });
 };
 
+function hasProp(propertyName) {
+  return function (req, res, next) {
+    const { data = {} } = req.body;
+    if (data[propertyName]) {
+      return next();
+    }
+    next({ status: 400, message: `Dish must include a ${propertyName}` });
+  };
+}
+
+function nameHasText(req, res, next) {
+  const { data: { name } = {} } = req.body;
+
+  if (name) {  
+      return next();
+  }
+  next({ status: 400, message: `Dish must include a ${name}` });
+};
+
+function descHasText(req, res, next) {
+    const { data: { description } = {} } = req.body;
+  
+    if (description) {  
+        return next();
+    }
+    next({ status: 400, message: `Dish must include a ${description}` });
+  };
+
+
+function dishExists(req, res, next) {
+  const { dishId } = req.params;
+  const foundDish = dishes.find((dish) => dish.id === Number(dishId));
+  if (foundDish) {
+    res.locals.dish = foundDish;
+    return next();
+  }
+  next({
+    status: 404,
+    message: `Dish not found: ${req.params.dishId}`,
+  });
+}
+
+function create(req, res) {
+  const { data: { name, description, price, image_url } = {} } = req.body;
+  const newDish = {
+    id: nextId,
+    name,
+    description,
+    price,
+    image_url,
+  };
+  dishes.push(newDish);
+  res.status(201).json({ data: newDish });
+}
+
+function read(req, res, next) {
+  res.json({ data: res.locals.dish });
+}
+
+function update(req, res) {
+  const dish = res.locals.dish;
+  const { data: { name, description, price, image_url } = {} } = req.body;
+
+  dish.name = name;
+  dish.description = description;
+  dish.price = price;
+  dish.image_url = image_url;
+
+  res.json({ data: dish });
+}
 
 module.exports = {
-    list,
-    // list: [middleWare, list]
-}
+  list,
+  create: [
+    hasProp("name"),
+    hasProp("description"),
+    hasProp("price"),
+    hasProp("image_url"),
+    nameHasText,
+    descHasText,
+    create,
+  ],
+  read: [dishExists, read],
+  update: [
+    dishExists,
+    hasProp("name"),
+    hasProp("description"),
+    hasProp("price"),
+    hasProp("image_url"),
+    nameHasText,
+    descHasText,
+    update,
+  ],
+  dishExists,
+};
