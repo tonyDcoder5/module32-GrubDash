@@ -22,24 +22,6 @@ function hasProp(propertyName) {
   };
 }
 
-function nameHasText(req, res, next) {
-  const { data: { name } = {} } = req.body;
-
-  if (name) {  
-      return next();
-  }
-  next({ status: 400, message: `Dish must include a ${name}` });
-};
-
-function descHasText(req, res, next) {
-    const { data: { description } = {} } = req.body;
-  
-    if (description) {  
-        return next();
-    }
-    next({ status: 400, message: `Dish must include a ${description}` });
-  };
-
 
 function dishExists(req, res, next) {
   const { dishId } = req.params;
@@ -54,10 +36,23 @@ function dishExists(req, res, next) {
   });
 }
 
+function priceCheck(req, res, next){
+    const {data: {price} = {}} = req.body;
+
+    if (price <= 0 || isNaN(price))
+    {
+        next({
+            status: 400,
+            message: `price`,
+          });
+    }
+    return next();
+}
+
 function create(req, res) {
   const { data: { name, description, price, image_url } = {} } = req.body;
   const newDish = {
-    id: nextId,
+    id: nextId(),
     name,
     description,
     price,
@@ -90,8 +85,7 @@ module.exports = {
     hasProp("description"),
     hasProp("price"),
     hasProp("image_url"),
-    nameHasText,
-    descHasText,
+    priceCheck,
     create,
   ],
   read: [dishExists, read],
@@ -101,8 +95,7 @@ module.exports = {
     hasProp("description"),
     hasProp("price"),
     hasProp("image_url"),
-    nameHasText,
-    descHasText,
+    priceCheck,
     update,
   ],
   dishExists,

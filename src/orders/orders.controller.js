@@ -13,7 +13,6 @@ const list = (req, res) => {
   res.json({ data: orders });
 };
 
-
 function destroy(req, res) {
     const { orderId } = req.params;
     const index = orders.findIndex((order) => order.id === Number(orderId));
@@ -31,7 +30,7 @@ function hasProp(propertyName) {
     if (data[propertyName]) {
       return next();
     }
-    next({ status: 400, message: `Dish must include a ${propertyName}` });
+    next({ status: 400, message: `Order must include a ${propertyName}` });
   };
 }
 
@@ -51,7 +50,7 @@ function orderExists(req, res, next) {
 function create(req, res) {
   const { data: { deliverTo, mobileNumber, status, dishes } = {} } = req.body;
   const newOrder = {
-    id: nextId,
+    id: nextId(),
     deliverTo,
     mobileNumber,
     status,
@@ -61,7 +60,7 @@ function create(req, res) {
   res.status(201).json({ data: newOrder });
 }
 
-function read(req, res, next) {
+function read(req, res) {
   res.json({ data: res.locals.order });
 }
 
