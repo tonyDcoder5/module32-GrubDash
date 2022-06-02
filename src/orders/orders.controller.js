@@ -47,6 +47,18 @@ function orderExists(req, res, next) {
   });
 }
 
+function checkDishes(req, res, next){
+  const {dishes} = res.locals.order;
+
+  if(dishes && dishes.length > 0 || Array.isArray(dishes)){
+    return next();
+  }
+  next({
+      status: 400,
+      message: `Order must include at least one dish`,
+    });
+}
+
 function create(req, res) {
   const { data: { deliverTo, mobileNumber, status, dishes } = {} } = req.body;
   const newOrder = {
@@ -85,6 +97,7 @@ module.exports = {
     hasProp("mobileNumber"),
     hasProp("status"),
     hasProp("dishes"),
+    checkDishes,
     create,
   ],
   read: [orderExists, read],
@@ -94,6 +107,7 @@ module.exports = {
     hasProp("mobileNumber"),
     hasProp("status"),
     hasProp("dishes"),
+    checkDishes,
     update,
   ],
   delete: [orderExists, destroy],

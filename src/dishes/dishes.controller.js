@@ -22,10 +22,9 @@ function hasProp(propertyName) {
   };
 }
 
-
 function dishExists(req, res, next) {
   const { dishId } = req.params;
-  const foundDish = dishes.find((dish) => dish.id === Number(dishId));
+  const foundDish = dishes.find((dish) => dish.id === dishId);
   if (foundDish) {
     res.locals.dish = foundDish;
     return next();
@@ -36,10 +35,26 @@ function dishExists(req, res, next) {
   });
 }
 
+function verifyDishId(req, res, next){
+  const {dishId} = req.params;
+  const {data: {id} = {} } = req.body; 
+  if(!id)
+  {
+    next();
+  } 
+  if(id !== dishId){
+    next({
+      status: 400,
+      message: `Dish id does not match route id. Dish: ${id}, Route: ${dishId}`,
+    })
+  }
+  next();
+}
+
 function priceCheck(req, res, next){
     const {data: {price} = {}} = req.body;
 
-    if (price <= 0 || isNaN(price))
+    if (price <= 0 || typeof price !== 'number')
     {
         next({
             status: 400,
@@ -91,6 +106,7 @@ module.exports = {
   read: [dishExists, read],
   update: [
     dishExists,
+    verifyDishId,
     hasProp("name"),
     hasProp("description"),
     hasProp("price"),
