@@ -13,16 +13,41 @@ const list = (req, res) => {
   res.json({ data: orders });
 };
 
-function destroy(req, res) {
-    const { orderId } = req.params;
-    const index = orders.findIndex((order) => order.id === Number(orderId));
-    if (index > -1) {
-      orders.splice(index, 1);
-    }
-    
-    res.sendStatus(204);
+function checkStatus(req, res, next) {
+  const { orderId } = req.params;
+  const { data: { status } = {} } = req.body;
 
+  if (status === "invalid") {
+    return next({
+      status: 400,
+      message: `invalid status: ${orderId}`,
+    });
   }
+
+  next();
+}
+
+function checkPendingStatus(req, res, next) {
+  const status = res.locals.order.status;
+
+  if (status === "pending") {
+    return next();
+  } else {
+    next({
+      status: 400,
+      message: `pending order`,
+    });
+  }
+}
+
+function destroy(req, res) {
+  const { orderId } = req.params;
+  const index = orders.findIndex((order) => order.id === Number(orderId));
+  
+  orders.splice(index, 1);
+  
+  res.sendStatus(204).json({ data: orders });
+}
 
 function hasProp(propertyName) {
   return function (req, res, next) {
@@ -36,7 +61,7 @@ function hasProp(propertyName) {
 
 function orderExists(req, res, next) {
   const { orderId } = req.params;
-  const foundOrder = orders.find((order) => order.id === Number(orderId));
+  const foundOrder = orders.find((order) => order.id === orderId);
   if (foundOrder) {
     res.locals.order = foundOrder;
     return next();
@@ -47,32 +72,63 @@ function orderExists(req, res, next) {
   });
 }
 
-function checkDishes(req, res, next){
-  const {dishes} = res.locals.order;
-
-  if(dishes && dishes.length > 0 || Array.isArray(dishes)){
-    return next();
-  }
-  next({
+function checkDishes(req, res, next) {
+  const { data: { dishes } = {} } = req.body;
+  if (!dishes || dishes.length === 0 || !Array.isArray(dishes)) {
+    return next({
       status: 400,
       message: `Order must include at least one dish`,
     });
+  }
+  next();
+}
+
+function checkDishQty(req, res, next) {
+  const { data: { dishes } = {} } = req.body;
+
+  dishes.map((dish) => {
+    if (
+      !dish.quantity ||
+      dish.quantity <= 0 ||
+      typeof dish.quantity != "number"
+    ) {
+      return next({
+        status: 400,
+        message: `quantity requires a valid number: ${dish.id}`,
+      });
+    }
+  });
+  next();
 }
 
 function create(req, res) {
-  const { data: { deliverTo, mobileNumber, status, dishes } = {} } = req.body;
+  const { data: { deliverTo, mobileNumber, dishes } = {} } = req.body;
   const newOrder = {
     id: nextId(),
     deliverTo,
     mobileNumber,
-    status,
     dishes,
   };
   orders.push(newOrder);
   res.status(201).json({ data: newOrder });
 }
 
-function read(req, res) {
+function verifyOrderId(req, res, next) {
+  const { orderId } = req.params;
+  const { data: { id } = {} } = req.body;
+  if (!id) {
+    next();
+  }
+  if (id !== orderId) {
+    next({
+      status: 400,
+      message: `Order id does not match route id. Order: ${id}, Route: ${orderId}`,
+    });
+  }
+  next();
+}
+
+function read(req, res, next) {
   res.json({ data: res.locals.order });
 }
 
@@ -88,27 +144,27 @@ function update(req, res) {
   res.json({ data: order });
 }
 
-
-
 module.exports = {
   list,
   create: [
     hasProp("deliverTo"),
     hasProp("mobileNumber"),
-    hasProp("status"),
-    hasProp("dishes"),
     checkDishes,
+    checkDishQty,
     create,
   ],
   read: [orderExists, read],
   update: [
     orderExists,
+    verifyOrderId,
     hasProp("deliverTo"),
     hasProp("mobileNumber"),
     hasProp("status"),
-    hasProp("dishes"),
+    checkStatus,
     checkDishes,
+    checkDishQty,
     update,
   ],
-  delete: [orderExists, destroy],
+  delete: [orderExists, checkPendingStatus, destroy],
+  orderExists,
 };
