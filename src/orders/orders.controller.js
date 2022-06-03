@@ -8,11 +8,52 @@ const orders = require(path.resolve("src/data/orders-data"));
 const nextId = require("../utils/nextId");
 
 // TODO: Implement the /dishes handlers needed to make the tests pass
-// create, read, update, and list
+
+// CRUDL functions begin here
 const list = (req, res) => {
   res.json({ data: orders });
 };
 
+function create(req, res) {
+  const { data: { deliverTo, mobileNumber, dishes } = {} } = req.body;
+  const newOrder = {
+    id: nextId(),
+    deliverTo,
+    mobileNumber,
+    dishes,
+  };
+  orders.push(newOrder);
+  res.status(201).json({ data: newOrder });
+}
+
+function read(req, res, next) {
+  res.json({ data: res.locals.order });
+}
+
+function update(req, res) {
+  const order = res.locals.order;
+  const { data: { deliverTo, mobileNumber, status, dishes } = {} } = req.body;
+
+  order.deliverTo = deliverTo;
+  order.mobileNumber = mobileNumber;
+  order.status = status;
+  order.dishes = dishes;
+
+  res.json({ data: order });
+}
+
+function destroy(req, res) {
+  const { orderId } = req.params;
+  const index = orders.findIndex((order) => order.id === Number(orderId));
+  
+  orders.splice(index, 1);
+  
+  res.sendStatus(204).json({ data: orders });
+}
+// CRUDL functions end here
+
+// Middleware functions begin here
+// check if order status is invalid 
 function checkStatus(req, res, next) {
   const { orderId } = req.params;
   const { data: { status } = {} } = req.body;
@@ -27,6 +68,7 @@ function checkStatus(req, res, next) {
   next();
 }
 
+// check if order status is pending before delete operation
 function checkPendingStatus(req, res, next) {
   const status = res.locals.order.status;
 
@@ -40,15 +82,7 @@ function checkPendingStatus(req, res, next) {
   }
 }
 
-function destroy(req, res) {
-  const { orderId } = req.params;
-  const index = orders.findIndex((order) => order.id === Number(orderId));
-  
-  orders.splice(index, 1);
-  
-  res.sendStatus(204).json({ data: orders });
-}
-
+// validate order objects have the required properties 
 function hasProp(propertyName) {
   return function (req, res, next) {
     const { data = {} } = req.body;
@@ -59,6 +93,7 @@ function hasProp(propertyName) {
   };
 }
 
+// validate orderId matches to an order object and set object to res.locals
 function orderExists(req, res, next) {
   const { orderId } = req.params;
   const foundOrder = orders.find((order) => order.id === orderId);
@@ -72,6 +107,7 @@ function orderExists(req, res, next) {
   });
 }
 
+// validate dishes property is a valid array
 function checkDishes(req, res, next) {
   const { data: { dishes } = {} } = req.body;
   if (!dishes || dishes.length === 0 || !Array.isArray(dishes)) {
@@ -83,6 +119,7 @@ function checkDishes(req, res, next) {
   next();
 }
 
+// validate dish in dishes array has a quantity greater than 0
 function checkDishQty(req, res, next) {
   const { data: { dishes } = {} } = req.body;
 
@@ -101,18 +138,7 @@ function checkDishQty(req, res, next) {
   next();
 }
 
-function create(req, res) {
-  const { data: { deliverTo, mobileNumber, dishes } = {} } = req.body;
-  const newOrder = {
-    id: nextId(),
-    deliverTo,
-    mobileNumber,
-    dishes,
-  };
-  orders.push(newOrder);
-  res.status(201).json({ data: newOrder });
-}
-
+// validate orderId param matches the order.id for the requested order object
 function verifyOrderId(req, res, next) {
   const { orderId } = req.params;
   const { data: { id } = {} } = req.body;
@@ -126,22 +152,6 @@ function verifyOrderId(req, res, next) {
     });
   }
   next();
-}
-
-function read(req, res, next) {
-  res.json({ data: res.locals.order });
-}
-
-function update(req, res) {
-  const order = res.locals.order;
-  const { data: { deliverTo, mobileNumber, status, dishes } = {} } = req.body;
-
-  order.deliverTo = deliverTo;
-  order.mobileNumber = mobileNumber;
-  order.status = status;
-  order.dishes = dishes;
-
-  res.json({ data: order });
 }
 
 module.exports = {
